@@ -1,0 +1,86 @@
+---
+title: 'Datakind + FII: Project Synthesis'
+author: "Shannon Lauricella + Gina Soileau"
+date: "August 13, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+For our DataCorps project, we worked with Family Independence Initiative (FII) to help solve one of their data problems. FII was seeking to automate their data audits, specifically seeking to use statistical methods to check for inconsistencies in reported data to achieve their goal of having more accurate and consistent data for the families in their program.
+
+The key deliverables for our project are 1) an anomaly detection algorithm that can be used to identify irregular values and 2) an interactive audit dashboard that can be used to review and track the anomalies flagged in the algorithm.
+
+A brief overview of the pieces are included below, along with operational instructions and proposed next steps to improve the algorithm and user experience in the audit process.
+
+## Anomaly Detection Algorithm
+
+The anomaly detection algorithm being delivered in this project takes as input a given journal date and returns as output a list of potentially anomalous points for an auditor to review. Anomalous points are flagged by taking a value and comparing it to the rolling mean and standard deviation. The algorithm was primarily coded by Gina and is written in Python. Instructions to run are included in the **Requirements to Run** section below.
+
+## Audit Dashboard
+
+The audit dashboard being delivered in this project is intended to allow an auditor to navigate the flagged points being output by the anomaly detection algorithm. The dashboard is an interaction Shiny console which allows an auditor to see the flagged points, see basic metadata for the families with flagged points, and take action on the flagged points (either clear false positives or generates email text to notify families that their data may be problematic). The dashboard was primarily coded by Shannon and is written using the Shiny package in R. Instructions to run are included in the **Requirements to Run** section below.
+
+## Requirements to Run
+
+As of now, all the code used in these projects have been checked into Github (see https://github.com/slauricella/datakind_fii_project).
+
+The workflow to run the detection algorithm follows:
+
+* Use command line to run anomaly detection algorithm (/scripts/anomalous.py). 
+* In the current implementation, the input data for the anomaly detection algorithm is a csv of the family journal.
+* Note that when the algo is called, the absolute path must be given unless the code and csv file are run from the same directory. If you don't specify a date, the current date is used. 
+
+Below are examples of how the algo can be run:
+
+*python anomalous.py family_journal.csv 2017-04-01*
+
+*python anomalous.py family_journal.csv*
+
+*python anomalous.py -h # for command line help on how to run the code*
+
+* The algorithm outputs a csv file with potential problem records. This data needs to be ported over to a Postgres database for the audit dashboard to read from.
+* Get Postgres instance set up (instructions at the end of write-up - see **Setup Instructions**.
+* Run R script (/scripts/write_anomalies_to_db.R) to copy the csv file output from the algo into a PostgreSQL database that can be 
+* Launch Shiny dashboard (/dashboard/ui.R -> click Run App button in RStudio).
+* Choose Service Location and FamilyID to investigate. You can switch from an overall metric (Error Overview tab) to family-level information (Error Breakdown tab).
+* Take action on flags - clear false positives for a family or generate email to notify a family that they need to review their data (note that automatic email is NOT implemented in this solution).
+* The audit dashboard only displays flags that have not been addressed - once a flag is cleared, it will no longer appear on the audit dashboard.
+
+## Additional Work + Next Steps
+
+Below are the next steps that we suggest can be taken for this project:
+
+**Updates to anomaly detection script**
+
+1. Expand anomaly script to flag multiple measures.
+2. Add functionality in anomaly detection script to cluster similar families and use these groupings as basis for what is considered anomalous.
+3. Connect anomaly script to directly output results to Postgres table.
+4. Incorporate false positive flags into algo (make algorithm smarter).
+
+**Updates to audit dashboard**
+
+1. Move audit dashboard into Shiny Server
+2. Use sendR package to allow emails to be generated and sent from dashboard
+3. Incorporate additional metadata about families into Error Breakdown page
+4. Allow selected flags to be cleared (right now, all of the flags for a family must be cleared at once)
+5. Add clustering metadata into Error Breakdown page
+
+## Setup Instructions
+
+1. Use ddl scripts (scripts/fii_ddl.sql) to set up fii_anomalies table and fii_anomalies_current views in database.
+2. Update 'Variables to set' in server.R with database connection and relevant table names to connect dashboard
+3. Ensure the following libraries are installed:
+
+```{r warning=F, message=F}
+require(shiny)
+require(shinydashboard)
+require(dplyr)
+require(DT)
+require(shinyBS)
+require(RPostgreSQL)
+```
